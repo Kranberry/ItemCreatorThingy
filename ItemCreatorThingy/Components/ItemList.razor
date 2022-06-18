@@ -1,0 +1,409 @@
+﻿@using System.Diagnostics
+@using ItemCreatorThingy.CS
+@using System.Text.Json
+
+@inject ISnackbar Snackbar
+
+<MudButton StartIcon="@Icons.Filled.FileUpload" EndIcon="@Icons.Filled.FileUpload" IconColor="Color.Success" OnClick="@CreateNewItemModalShow" Variant="Variant.Filled" Color="Color.Primary" Class="w-100 mud-elevation-25">Add new item</MudButton>
+<MudButton StartIcon="@Icons.Filled.Save" EndIcon="@Icons.Filled.Save" IconColor="Color.Success" OnClick="@SaveItemsToJson" Variant="Variant.Filled"  Class="w-100 mud-elevation-25 mud-success-text">Save changes</MudButton>
+
+<MudTable Items="@Items" Dense="true">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Items</MudText>
+        <MudSpacer />
+        @*<MudTextField @bind-Value="searchString1" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>*@
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>Texture</MudTh>
+        <MudTh Style="width: 6%;">ID</MudTh>
+        <MudTh>ItemClass</MudTh>
+        <MudTh>Name</MudTh>
+        <MudTh>Description</MudTh>
+        <MudTh Style="width: 2%;">CraftTime</MudTh>
+        <MudTh Style="width: 2%;">SellPrice</MudTh>
+        <MudTh Style="width: 2%;">BuyPrice</MudTh>
+        <MudTh>ResourceCost</MudTh>
+        <MudTh>DisassembleReturn</MudTh>
+        <MudTh Style="width: 1%;"></MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Texture">
+            <div class="textureParent">
+                <img src="@("data:image/png;base64,") @GetTextureOfBackground()" class="imgBackground pixelTexture"/>
+                <img src="@("data:image/png;base64,") @GetTexturePath(@context.Texture)" class="imgTexture pixelTexture"/>
+            </div> 
+        </MudTd>
+        <MudTd DataLabel="ID">@context.Identifier</MudTd>
+        <MudTd DataLabel="ItemClass">@context.ItemClass</MudTd>
+        @*<MudTd DataLabel="ItemClass">
+            <MudSelect T="string" @bind-Value="@context.ItemClass">
+                @foreach(string itemClass in ItemClasses)
+                {
+                    <MudSelectItem T="string" Value="@itemClass"></MudSelectItem>
+                }
+            </MudSelect>
+        </MudTd>*@
+        <MudTd DataLabel="Name"><MudInput T="string" @bind-Value="@context.Name"></MudInput></MudTd>
+        <MudTd DataLabel="Description"><MudInput T="string" @bind-Value="@context.Description"></MudInput></MudTd>
+        <MudTd DataLabel="CraftTime"><MudInput T="int" @bind-Value="@context.CraftTime"></MudInput></MudTd>
+        <MudTd DataLabel="SellPrice"><MudInput T="int" @bind-Value="@context.SellPrice"></MudInput></MudTd>
+        <MudTd DataLabel="BuyPrice"><MudInput T="int" @bind-Value="@context.BuyPrice"></MudInput></MudTd>
+        <MudTd DataLabel="ResourceCost">
+        @if(@context.ResourceCost is not null)
+        {
+            <MudExpansionPanels MultiExpansion="true">
+                <MudExpansionPanel Class="mud-theme-error" Text="Resources">
+                <MudDivider />
+	                @foreach(KeyValuePair<string, int> kvp in @context.ResourceCost)
+	                {
+                         <p>@GetItemByIdentifier(@kvp.Key).Name : @kvp.Value</p>
+                    }
+                </MudExpansionPanel>
+            </MudExpansionPanels>   
+        }
+        </MudTd>
+        <MudTd DataLabel="DisassembleReturn">
+        @if(@context.DisassembleReturn is not null)
+        {
+            <MudExpansionPanels MultiExpansion="true">
+                <MudExpansionPanel Class="mud-theme-success" Text="Disassemble">
+                <MudDivider />
+	                @foreach(KeyValuePair<string, int> kvp in  @context.DisassembleReturn)
+	                {
+                         <p>@GetItemByIdentifier(@kvp.Key).Name : @kvp.Value</p>
+                    }
+                </MudExpansionPanel>
+            </MudExpansionPanels>   
+        }
+        </MudTd>
+        <MudTd><MudButton StartIcon="@Icons.Filled.RestoreFromTrash" IconColor="Color.Error" OnClick="@(() => DeleteItem(@context))"></MudButton></MudTd>
+    </RowTemplate>
+</MudTable>
+
+<MudDialog @bind-IsVisible="@IsVisible" Style="width:100%;" DisableSidePadding="true">
+    <TitleContent>
+        <MudText Typo="Typo.h4" Color="Color.Tertiary">Create new item</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudForm Style="width: 500px;">
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudCardContent>
+                        <MudText>Item Basics</MudText>
+                        <MudText Class="mt-4">Texture</MudText>
+                        <InputFile id="fileInput112" OnChange="ChooseTexture" hidden accept=".png" />
+                        <MudButton HtmlTag="label" for="fileInput112">
+                            <div class="textureParent">
+                                <img src="@("data:image/png;base64,") @GetTextureOfBackground()" class="imgBackground pixelTexture"/>
+                                @if(!string.IsNullOrWhiteSpace(CreateItemTexturePath))
+                                {
+                                    <img src="@("data:image/png;base64,") @GetTexturePath(CreateItemTexturePath)" class="imgTexture pixelTexture"/>
+                                }
+                            </div>
+                        </MudButton> 
+                        <MudTextField T="string" Label="Name" @bind-Value="ItemToCreate.Name" Required="true" RequiredError="The item must have a name dumbo!"/>
+                        <MudSelect T="string" Label="ItemClass" Required="true" RequiredError="ItemClass must be choosen" @bind-Value="ItemToCreate.ItemClass" MultiSelection="false" AnchorOrigin="Origin.BottomCenter">
+                            @foreach(string itemClass in ItemClasses)
+                            {
+                                <MudSelectItem Value="@itemClass" />
+                            }
+                        </MudSelect>
+                        <MudTextField T="string" Label="Description" @bind-Value="ItemToCreate.Description" Required="true" RequiredError="The item must have a description dumbo!"/>
+                        <MudTextField T="int" @bind-Value="ItemToCreate.CraftTime" Label="CraftTime"/>
+                        <MudTextField T="int" @bind-Value="ItemToCreate.SellPrice" Label="SellPrice"/>
+                        <MudTextField T="int" @bind-Value="ItemToCreate.BuyPrice" Label="BuyPrice"/>
+                    </MudCardContent>
+                </MudItem>
+                
+                <MudItem xs="12">
+                    <MudCardContent>
+                        <MudExpansionPanels>
+                            <div class="d-flex flex-row">
+                                <MudSelect T="string" Label="Item" @bind-Value="@ResourceCostToAdd" AnchorOrigin="Origin.BottomCenter">
+                                @foreach(Item item in Items)
+                                {
+                                    <MudSelectItem T="string" Value="@($"{item.Identifier}: {item.Name}")"></MudSelectItem>
+                                }
+                                </MudSelect>
+                                <MudTextField Class="col-2 mx-5" T="int" Label="Amount" @bind-Value="@ResourceCostAmountToAdd"></MudTextField>
+                                <MudIconButton OnClick="AddNewResourceCostToCreateItem" Icon="@Icons.Filled.Add" Color="Color.Success" Variant="Variant.Outlined"></MudIconButton>
+                            </div>
+                            <MudExpansionPanel Text="ResourceCost" Class="mud-theme-dark">
+                                <hr />
+                                @foreach(KeyValuePair<string, int> kvp in ItemToCreate.ResourceCost)
+                                {
+                                    <div class="d-flex flex-row justify-space-between align-center">
+                                        <MudText Typo="Typo.body2">@($"{GetItemByIdentifier(kvp.Key).Identifier}: {GetItemByIdentifier(kvp.Key).Name}")</MudText>
+                                        <div class="d-flex flex-row align-center">
+                                            <MudText Color="Color.Warning" Typo="Typo.body2">@(kvp.Value)</MudText>
+                                            <MudIconButton OnClick="@(() => RemoveResourceCostToCreateItem(kvp.Key))" Icon="@Icons.Filled.Remove" Variant="Variant.Text" Color="Color.Secondary" Size="Size.Small"></MudIconButton>
+                                        </div>                                    
+                                    </div>
+                                }
+                            </MudExpansionPanel>
+                            
+                            <div class="d-flex flex-row mt-4">
+                                <MudSelect T="string" Label="Item" @bind-Value="ResourceRefundToAdd" AnchorOrigin="Origin.BottomCenter">
+                                @foreach(Item item in Items)
+                                {
+                                    <MudSelectItem T="string" Value="@($"{item.Identifier}: {item.Name}")"></MudSelectItem>
+                                }
+                                </MudSelect>
+                                <MudTextField Class="col-2 mx-5" T="int" Label="Amount" @bind-Value="ResourceRefundAmountToAdd"></MudTextField>
+                                <MudIconButton OnClick="AddNewDisassembleReturnToCreateItem" Icon="@Icons.Filled.Add" Color="Color.Success" Variant="Variant.Outlined"></MudIconButton>
+                            </div>
+                            <MudExpansionPanel Text="DisassembleReturn" Class="mud-theme-dark">
+                                <hr />
+                                @foreach(KeyValuePair<string, int> kvp in ItemToCreate.DisassembleReturn)
+                                {
+                                    <div class="d-flex flex-row justify-space-between align-center">
+                                        <MudText Typo="Typo.body2">@($"{GetItemByIdentifier(kvp.Key).Identifier}: {GetItemByIdentifier(kvp.Key).Name}")</MudText>
+                                        <div class="d-flex flex-row align-center">
+                                            <MudText Color="Color.Warning" Typo="Typo.body2">@(kvp.Value)</MudText>
+                                            <MudIconButton OnClick="@(() => RemoveDisassembleReturnToCreateItem(kvp.Key))" Icon="@Icons.Filled.Remove" Variant="Variant.Text" Color="Color.Secondary" Size="Size.Small"></MudIconButton>
+                                        </div>
+                                    </div>
+                                }
+                            </MudExpansionPanel>
+                        </MudExpansionPanels>
+
+                    </MudCardContent>
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+    
+    <DialogActions>
+        <MudButton OnClick="@CancelCreateNewItemClick" Variant="Variant.Text" Class="mud-secondary-text">Cancel</MudButton>
+        <MudButton OnClick="@CreateNewItemClick" Variant="Variant.Filled" Class="mud-theme-primary">Create New</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code
+{
+    List<Item> Items = new();
+    List<string> ItemClasses = new();
+    List<string> ItemClassesWhereSomethingWasRemoved = new();
+
+    private string searchString1 = "";
+    private bool IsVisible = false;
+    private string CreateItemTexturePath = "";
+
+    private Item ItemToCreate = default;
+    private string ResourceCostToAdd = "";
+    private int ResourceCostAmountToAdd = 1;
+    private string ResourceRefundToAdd = "";
+    private int ResourceRefundAmountToAdd = 1;
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            Snackbar.Configuration.MaxDisplayedSnackbars = 10;
+            Items = GetItems();
+            ItemClasses = GetItemCLasses();
+        }
+
+        base.OnAfterRender(firstRender);
+    }
+
+    private Item GetItemByIdentifier(string identifier)
+    {
+        return Items.First(i => i.Identifier == identifier);
+    }
+
+    private void CreateNewItemModalShow()
+    {
+        IsVisible = !IsVisible;
+        ItemToCreate = new();
+        ItemToCreate.ResourceCost = new();
+        ItemToCreate.DisassembleReturn = new();
+    }
+
+    private void CancelCreateNewItemClick()
+    {
+        CreateItemTexturePath = "";
+        IsVisible = false;
+        ItemToCreate.Identifier = default;
+
+        ResourceCostAmountToAdd = 1;
+        ResourceCostToAdd = "";
+        ResourceRefundAmountToAdd = 1;
+        ResourceRefundToAdd = "";
+    }
+
+    private void CreateNewItemClick()
+    {
+        if (string.IsNullOrWhiteSpace(ItemToCreate.Name))
+        {
+            Snackbar.Add("Item does not have a name!", Severity.Error, (options) => { options.ShowCloseIcon = true; options.SnackbarVariant = Variant.Filled; options.Icon = Icons.Filled.Error; });
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(ItemToCreate.ItemClass))
+        {
+            Snackbar.Add("ItemClass has not been choosen", Severity.Error, (options) => { options.ShowCloseIcon = true; options.SnackbarVariant = Variant.Filled; options.Icon = Icons.Filled.Error; });
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(ItemToCreate.Description))
+        {
+            Snackbar.Add("Description is not set", Severity.Error, (options) => { options.ShowCloseIcon = true; options.SnackbarVariant = Variant.Filled; options.Icon = Icons.Filled.Error; });
+            return;
+        }
+        ItemToCreate.Texture = CreateItemTexturePath;
+        IsVisible = false;
+        ItemToCreate.Identifier = Item.GenerateNextId(Items, ItemToCreate.ItemClass);
+        Items.Add(ItemToCreate);
+
+        ResourceCostAmountToAdd = 1;
+        ResourceCostToAdd = "";
+        ResourceRefundAmountToAdd = 1;
+        ResourceRefundToAdd = "";
+        StateHasChanged();
+    }
+
+    private void AddNewResourceCostToCreateItem()
+    {
+        string identifier = ResourceCostToAdd.Split(":")[0];
+        ItemToCreate.ResourceCost.TryAdd(identifier, ResourceCostAmountToAdd);
+        StateHasChanged();
+    }
+    
+    private void RemoveResourceCostToCreateItem(string identifier)
+    {
+        ItemToCreate.ResourceCost.Remove(identifier);
+        StateHasChanged();
+    } 
+
+    private void RemoveDisassembleReturnToCreateItem(string identifier)
+    {
+        ItemToCreate.DisassembleReturn.Remove(identifier);
+        StateHasChanged();
+    }
+
+    private void AddNewDisassembleReturnToCreateItem()
+    {
+        string identifier = ResourceRefundToAdd.Split(":")[0];
+        ItemToCreate.DisassembleReturn.TryAdd(identifier, ResourceRefundAmountToAdd);
+        StateHasChanged();
+    }
+
+    private void DeleteItem(Item item)
+    {
+        Items.Remove(item);
+        ItemClassesWhereSomethingWasRemoved.Add(item.ItemClass);
+        StateHasChanged();
+    }
+
+    //private bool FilterFunc1(Element element) => FilterFunc(element, searchString1);
+
+    //private bool FilterFunc(Element element, string searchString)
+    //{
+    //    if (string.IsNullOrWhiteSpace(searchString))
+    //        return true;
+    //    if (element.Sign.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+    //        return true;
+    //    if (element.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+    //        return true;
+    //    if ($"{element.Number} {element.Position} {element.Molar}".Contains(searchString))
+    //        return true;
+    //    return false;
+    //}
+
+    private void ChooseTexture(InputFileChangeEventArgs e)
+    {
+        IBrowserFile image = e.GetMultipleFiles().First();
+
+        string localFilesPath = AppDefaults.LocalFolderFilesPath() + "textures";
+        string[] files = Directory.GetFiles(localFilesPath, $"{image.Name}", SearchOption.AllDirectories);
+        string filePath = files.FirstOrDefault();
+
+        if(filePath is null)
+        {
+            Snackbar.Add("File not found in localData", Severity.Error);
+        }
+        else
+        {
+            Snackbar.Add(image.Name, Severity.Info);
+        }
+
+        filePath = filePath.Substring(localFilesPath.Length + 1 + "items\\".Length);
+        CreateItemTexturePath = filePath;
+    }
+
+    private List<Item> GetItems()
+    {
+        Items.Clear();
+        List<string> files = Directory.GetFiles(AppDefaults.LocalFolderFilesPath() + "items/").ToList();
+        JsonSerializerOptions options = new() { PropertyNameCaseInsensitive = true };
+        foreach(string str in files)
+        {
+            string json = File.ReadAllText(str);
+            IList<Item> itemsToAdd = JsonSerializer.Deserialize<IList<Item>>(json, options);
+            Items.AddRange(itemsToAdd);
+        }
+
+        StateHasChanged();
+        return Items;
+    }
+
+    private List<string> GetItemCLasses()
+    {
+        List<string> files = Directory.GetFiles(AppDefaults.LocalFolderFilesPath() + "items/").Select(str => Path.GetFileName(str)[0..^6]).ToList();
+        ItemClasses = files;
+        StateHasChanged();
+        return files;
+    }
+
+    private string GetTexturePath(string texturePath)
+    {
+        string pathToTextures = AppDefaults.LocalFolderFilesPath() + "textures/items/";
+        string fullPath = pathToTextures + texturePath;
+
+        byte[] imageArray;
+        try
+        {
+            imageArray = File.ReadAllBytes(fullPath);
+        }
+        catch(Exception e)
+        {
+            imageArray = File.ReadAllBytes($"{AppDefaults.LocalFolderFilesPath()}textures/Default.png");
+        }
+
+        string base64ImageRepresentation = Convert.ToBase64String(imageArray);
+        return base64ImageRepresentation;
+    }
+
+    private string GetTextureOfBackground()
+    {
+        string pathToTextures = AppDefaults.LocalFolderFilesPath() + "textures/ItemBackground.png";
+        byte[] imageArray = File.ReadAllBytes(pathToTextures);
+
+        if (imageArray is null)
+            return null;
+
+        string base64ImageRepresentation = Convert.ToBase64String(imageArray);
+        return base64ImageRepresentation;
+    }
+
+    private string GetMultiSelectionText(List<string> selectedValues)
+    {
+        return $"{selectedValues.Count} items selected";
+    }
+
+    private void SaveItemsToJson()
+    {
+        List<string> jsonsToSave = Items.Select(i => $"{i.ItemClass}").ToList();
+        jsonsToSave.AddRange(ItemClassesWhereSomethingWasRemoved);
+        jsonsToSave = jsonsToSave.Distinct().ToList();
+
+        JsonSerializerOptions options = new() { WriteIndented = true };
+        foreach(string str in jsonsToSave)
+        {
+            IList<Item> itemsInClass = Items.Where(i => i.ItemClass == str).ToList();
+            string jsonFile = $"items/{str}s.json";
+
+            string rawJsonToWrite = JsonSerializer.Serialize(itemsInClass, options);
+            File.WriteAllText($"{AppDefaults.LocalFolderFilesPath()}{jsonFile}", rawJsonToWrite, System.Text.Encoding.Unicode);
+        }
+    }
+}

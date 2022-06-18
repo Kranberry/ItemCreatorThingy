@@ -1,0 +1,130 @@
+﻿@inject ISnackbar Snackbar
+
+@page "/localfiles"
+
+<hr />
+<MudText Typo="Typo.h6" Align="Align.Center" Class="w-100">@AppDefaults.LocalFolderFilesPath()</MudText>
+<hr />
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge">
+    <MudButton OnClick="OpenFileLocation" Color="Color.Info" Variant="Variant.Outlined">Open File Location</MudButton>
+
+    <MudPaper Elevation="25" Outlined="true" MaxWidth="100%">
+        <MudText Typo="Typo.h4">Json Files</MudText>
+        <MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="d-flex flex-row flex-wrap">
+        @foreach(string jsonFile in GetAllJsonFiles())
+        {
+            <div class="d-flex flex-column space-between mx-2">
+                <MudButton OnClick="@(() => OpenJson(jsonFile))">
+                    <MudIcon Icon="@Icons.Filled.FileOpen" Color="Color.Primary" Style="width: 128px; height: 128px;"></MudIcon>
+                </MudButton>
+                <MudText Typo="Typo.caption" Class="flex-1 align-self-center">@jsonFile</MudText>
+            </div>
+        }
+        </MudContainer>
+    </MudPaper>
+
+    <MudPaper Elevation="25" Outlined="true" MaxWidth="100%" Class="my-5">
+        <MudText Typo="Typo.h4">Textures</MudText>
+        <MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="d-flex flex-row flex-wrap my-4">
+        @foreach(string pngFile in GetAllPngFiles())
+        {
+            <div class="d-flex flex-column space-between mx-2" style="width: 64px; height: 64px;">
+                <img src="@("data:image/png;base64,") @GetBase64Source(pngFile)" class="pixelTexture" />
+            </div>
+        }
+        </MudContainer>
+    </MudPaper>
+</MudContainer>
+
+
+<MudDialog @bind-IsVisible="ShowJsonFileDialog" Style="max-height: 85%; min-height: 85%; min-width: 60%; max-width: 60%;" DisableSidePadding="true">
+    <TitleContent>
+        <MudText Typo="Typo.h5">@JsonFileName</MudText>
+    </TitleContent>
+
+    <DialogContent>
+        <MudContainer Style="max-height: 100%; min-height: 100%; overflow-y: scroll;">
+            <MudTextField T="string" @bind-Value="JsonFileInText" Lines="37" Style="height: 100%;" Variant="Variant.Outlined">
+            </MudTextField>
+        </MudContainer>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="CancelJsonFile">Cancel</MudButton>
+        <MudButton OnClick="SaveJsonFile" StartIcon="@Icons.Filled.Save" EndIcon="@Icons.Filled.Save" IconColor="Color.Success" Variant="Variant.Filled" Color="Color.Primary">Save Changes</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private bool ShowJsonFileDialog = false;
+    private string JsonFileName = "";
+    private string JsonFileInText = "";
+
+    private void OpenJson(string path)
+    {
+        string localPath = AppDefaults.LocalFolderFilesPath() + path;
+        JsonFileInText = File.ReadAllText(localPath);
+        JsonFileName = path;
+        ShowJsonFileDialog = true;
+    }
+
+    private string[] GetAllJsonFiles()
+    {
+        string localFilesPath = AppDefaults.LocalFolderFilesPath();
+        string[] files = Directory.GetFiles(localFilesPath, $"*.json", SearchOption.AllDirectories).Select(s => s.Substring(localFilesPath.Length)).ToArray();
+
+        return files;
+    }
+
+    private string[] GetAllPngFiles()
+    {
+        string localFilesPath = AppDefaults.LocalFolderFilesPath();
+        string[] files = Directory.GetFiles(localFilesPath, $"*.png", SearchOption.AllDirectories).Select(s => s.Substring(localFilesPath.Length)).ToArray();
+
+        return files;
+    }
+
+    private string GetBase64Source(string path)
+    {
+        string localPath = AppDefaults.LocalFolderFilesPath();
+        byte[] imageArray;
+        try
+        {
+            imageArray = File.ReadAllBytes(localPath + path);
+        }
+        catch(Exception e)
+        {
+            imageArray = File.ReadAllBytes($"{AppDefaults.LocalFolderFilesPath()}textures/Default.png");
+        }
+
+        string base64ImageRepresentation = Convert.ToBase64String(imageArray);
+        return base64ImageRepresentation;
+    }
+
+    private void OpenFileLocation()
+    {
+        string localFilesPath = AppDefaults.LocalFolderFilesPath();
+        System.Diagnostics.ProcessStartInfo startInfo = new()
+        {
+            FileName = localFilesPath,
+            UseShellExecute = true
+        };
+
+        System.Diagnostics.Process.Start(startInfo);
+    }
+
+    private void SaveJsonFile()
+    {
+        string localPath = AppDefaults.LocalFolderFilesPath() + JsonFileName;
+        File.WriteAllText(localPath, JsonFileInText);
+        Snackbar.Add($"{JsonFileName} saved successfully", Severity.Success);
+    }
+
+    private void CancelJsonFile()
+    {
+        JsonFileName = "";
+        JsonFileInText = "";
+        ShowJsonFileDialog = false;
+    }
+}

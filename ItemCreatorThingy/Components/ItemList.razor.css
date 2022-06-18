@@ -1,0 +1,25 @@
+﻿.pixelTexture {
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    width: 32px;
+    height: 32px;
+}
+
+.textureParent {
+    position: relative;
+    /*top: 0;
+    left: 0;*/
+}
+
+.imgBackground {
+    position: relative;
+    top: 0;
+    left: 0;
+}
+
+.imgTexture {
+    position: absolute;
+    top: 0;
+    left: 0;
+}

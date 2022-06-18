@@ -1,0 +1,7 @@
+﻿.pixelTexture {
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    width: 64px;
+    height: 64px;
+}
